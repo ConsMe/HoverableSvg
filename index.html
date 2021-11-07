@@ -19,7 +19,7 @@
       cursor: pointer;
     }
     * {
-      transition: all 0.7s ease;
+      transition: all 0.3s ease;
     }
     .opacity-0 {
       opacity: 0;
@@ -29,6 +29,15 @@
     }
     .group:active .group-active\:opacity-0, .group1:active .group1-active\:opacity-0, .group2:active .group2-active\:opacity-0 {
       opacity: 0 !important;
+    }
+    .nc .nc\:\!opacity-0 {
+      opacity: 0 !important;
+    }
+    .\!opacity-0 {
+      opacity: 0 !important;
+    }
+    .\!opacity-100 {
+      opacity: 1 !important;
     }
     .fill-current {
       fill: currentColor;
@@ -85,18 +94,28 @@
       <div class="mt-2">
         <button @click="toClipbooard">To clipboard</button>
       </div>
+      <div class="mt-2">
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="checkbox" id="inlineCheckbox2" v-model="hasActiveState">
+          <label class="form-check-label" for="inlineCheckbox2">Has active state</label>
+        </div>
+        <div class="form-check form-check-inline" v-if="hasActiveState">
+          <input class="form-check-input" type="checkbox" id="inlineCheckbox3" v-model="isActive">
+          <label class="form-check-label" for="inlineCheckbox3">Test active state</label>
+        </div>
+      </div>
+      <div class="mt-2">
+        <button @click="reset">Reset all</button>
+      </div>
     </div>
     <div class="mt-2 flex-1 px-2 position-relative" :class="{ nc: isNc }">
       <p>Result</p>
       <span
-        v-html="final.svg ? final.svg.outerHTML : ''"
+        v-html="displaySvg ? displaySvg.outerHTML : ''"
         v-for="n in 3"
         :key="n"
         class="res"></span>
       <div class="position-absolute top-0 start-0 w-100 h-100" v-if="isNc"></div>
-      <div class="mt-2">
-        <button @click="reset">Reset all</button>
-      </div>
     </div>
   </div>
   <script src="index.js"></script>

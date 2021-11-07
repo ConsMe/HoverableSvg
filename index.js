@@ -8,6 +8,8 @@ const app = Vue.createApp({
     hoverBy: 'self',
     groupClass: 'group',
     isNc: false,
+    hasActiveState: false,
+    isActive: false,
   }),
   computed: {
     params() {
@@ -71,7 +73,15 @@ const app = Vue.createApp({
             use.setAttribute('filter', `url(#${filter.getAttribute('id')})`);
             classes.push(`${this.groupClass}-${type}:opacity-100`);
             if (type === 'hover') classes.push(`${this.groupClass}-active:opacity-0`);
-            use.setAttribute('class', classes.join(' '));
+            if (this.hasActiveState) {
+              if (type === 'hover') {
+                use.setAttribute(':class', `isActive ? 'opacity-0' : '${classes.join(' ')}'`);
+              } else {
+                use.setAttribute(':class', `isActive ? 'nc:!opacity-0' : '${classes.join(' ')}'`);
+              }
+            } else {
+              use.setAttribute('class', classes.join(' '));
+            }
             uses.push(use);
           });
         });
@@ -91,21 +101,56 @@ const app = Vue.createApp({
         const shape = shapeInit.cloneNode(true);
         const classes = ['fill-current', `text-[${shape.getAttribute('fill')}]`];
         shape.removeAttribute('fill');
+        let activeColor = '';
         ['hover', 'active'].forEach((type) => {
           const color = this.shapes[type][i].getAttribute('fill');
+          if (type === 'active') activeColor = color;
           classes.push(`${this.groupClass}-${type}:text-[${color}]`);
         });
-        classes.push(`nc:text-[${this.shapes.nc[i].getAttribute('fill')}]`);
-        shape.setAttribute('class', classes.join(' '));
+        const ncColor = `nc:text-[${this.shapes.nc[i].getAttribute('fill')}]`;
+        classes.push(ncColor);
+        if (this.hasActiveState) {
+          shape.setAttribute(
+            ':class',
+            `isActive ? 'fill-current text-[${activeColor}] ${ncColor}' : '${classes.join(' ')}'`
+          );
+          allClasses.push(`text-[${activeColor}]`);
+        } else {
+          shape.setAttribute('class', classes.join(' '));
+        }
         final.svg.append(shape);
         allClasses.push(...classes);
       });
+      console.log(allClasses);
       const defs = document.createElement('defs');
-      defs.append(...this.filters.hover, ...this.filters.active);
+      let filters = [...this.filters.hover, ...this.filters.active];
+      filters = filters.filter((filter, i) => {
+        const id = filter.getAttribute('id');
+        return !filters.slice(i + 1).find((f) => f.getAttribute('id') === id);
+      });
+      defs.append(...filters);
       final.svg.prepend(...this.uses);
       final.svg.append(defs);
       final.allClasses = [...new Set(allClasses)];
       return final;
+    },
+    displaySvg() {
+      const { svg } = this.final;
+      if (!svg) return null;
+      const displaySvg = svg.cloneNode(true);
+      if (this.hasActiveState) {
+        [...displaySvg.children].forEach((el, i) => {
+          if (/^defs$/i.test(el.nodeName)) return;
+          const cl = el.getAttribute(':class');
+          if (!cl) return;
+          const matched = this.isActive
+            ? cl.match(/\?\s'(.*)'\s:/) : cl.match(/\:\s'(.*)'$/);
+          if (!matched) return;
+          el.setAttribute('class', matched[1]);
+          el.removeAttribute(':class');
+        });
+      }
+      return displaySvg;
     },
   },
   watch: {
@@ -113,7 +158,7 @@ const app = Vue.createApp({
     'final.allClasses': function(classes) {
       let styles = '';
       const group = this.hoverBy === 'self' ? `.${this.groupClass}` : 'svg';
-      classes.splice(' ').forEach((c) => {
+      classes.forEach((c) => {
         if (c.indexOf('text') === -1) return;
         const color = c.match(/\[(.*)\]/)?.[1];
         if (!color) return;
@@ -200,7 +245,26 @@ const app = Vue.createApp({
       if (this.final.svg) {
         const template = document.createElement('template');
         template.innerHTML = '<!-- eslint-disable max-len -->' + this.final.svg.outerHTML;
-        navigator.clipboard.writeText(template.outerHTML);
+        let scripts = '';
+        if (this.hasActiveState) {
+          const script = document.createElement('script');
+          script.setAttribute('lang', 'ts');
+          script.innerHTML = `
+            import { defineComponent } from 'vue';
+
+            export default defineComponent({
+              name: '',
+              props: {
+                isActive: {
+                  type: Boolean,
+                  default: false,
+                },
+              },
+            });
+          `;
+          scripts = script.outerHTML;
+        }
+        navigator.clipboard.writeText(template.outerHTML + scripts);
       }
     },
     reset() {
@@ -211,6 +275,8 @@ const app = Vue.createApp({
       this.hoverBy = 'self';
       this.groupClass = 'group';
       this.isNc = false;
+      this.hasActiveState = false;
+      this.activeStateIsOn = false;
     },
   },
 });
